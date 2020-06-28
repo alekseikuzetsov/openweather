@@ -1,11 +1,12 @@
 import datetime
-
-import flask_bcrypt
 import jwt
-from flask import Flask, request, jsonify
-from pymongo import MongoClient
 from functools import wraps
 
+from bson import ObjectId
+from pymongo import MongoClient
+import flask_bcrypt
+
+from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'randomhex'
@@ -16,6 +17,7 @@ db = cluster['myproject']
 users = db['Users']
 items = db['Items']
 
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -24,11 +26,12 @@ def token_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'])
         except:
-            return jsonify({'message': 'UNAUTHORISED USER'})
+            return jsonify({'message': 'UNAUTHORISED USER'}), 401
 
         return f(*args, **kwargs)
 
     return decorated
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -64,16 +67,44 @@ def login():
     return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'})
 
 @app.route('/items/new', methods=['POST'])
+@token_required
 def new_item():
-    return
+    token = request.args.get('token')
+    user = jwt.decode(token, app.config['SECRET_KEY'])['user']
+    name = request.args.get('name')
+    item_id = items.insert_one({'name': name, 'owner': user}).inserted_id
+    item = items.find_one({'_id': item_id})
+    attributes = {key: item[key] for key in item if key not in ['_id', 'owner', 'new_owner']}
+    return jsonify({'message': 'ITEM CREATED', 'item_id': str(item_id), 'attributes': attributes})
 
 @app.route('/items', methods=['GET'])
+@token_required
 def get_items():
-    return
+    token = request.args.get('token')
+    user = jwt.decode(token, app.config['SECRET_KEY'])['user']
+    item_list = items.find({'owner': user})
+    for_user = {}
+    for item in item_list:
+        for_user[str(item['_id'])] = {key: item[key] for key in item if key not in ['_id', 'owner', 'new_owner']}
+    return jsonify(for_user)
 
-@app.route('/items/:id', methods=['DELETE'])
+@app.route('/items/<id>', methods=['DELETE'])
+@token_required
 def delete_item(id):
-    return
+    token = request.args.get('token')
+    user = jwt.decode(token, app.config['SECRET_KEY'])['user']
+
+    try:
+        obj_id = ObjectId(id)
+    except:
+        return jsonify({'message': 'INVALID ITEM ID'}), 400
+    item = items.find_one({'_id': obj_id, 'owner': user})
+    if item:
+        items.delete_many({'_id': obj_id})
+    else:
+        return jsonify({'message': 'ITEM NOT FOUND'}), 404
+    return jsonify({'message': 'ITEM DELETED SUCCESSFULLY'})
+
 
 if __name__ == '__main__':
     app.run()
