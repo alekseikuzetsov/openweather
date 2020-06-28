@@ -25,6 +25,6 @@ Install required packages. Run:
 
 ## Run
 
-In project directory. Ensure the correct virtual environment.
+In project directory 'openweather'. Ensure the correct virtual environment.
 
-Run `python app.py` to activate the localhost. 
+Run `python app/app.py` to activate API on the localhost. 
