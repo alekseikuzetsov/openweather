@@ -40,17 +40,17 @@ def register():
     auth = request.authorization
     if auth:
         if auth.username == '':
-            return jsonify({'message': 'USERNAME MUST BE NON-EMPTY'})
+            return jsonify({'message': 'USERNAME MUST BE NON-EMPTY'}), 400
         if auth.password == '':
-            return jsonify({'message': 'PASSWORD MUST BE NON-EMPTY'})
+            return jsonify({'message': 'PASSWORD MUST BE NON-EMPTY'}), 400
 
         if users.find_one({'username': auth.username}):
-            return jsonify({'message': 'USERNAME IS IN USE'})
+            return jsonify({'message': 'USERNAME IS IN USE'}), 406
         else:
             hashed_password = flask_bcrypt.generate_password_hash(auth.password).decode('utf-8')
             users.insert_one({'username': auth.username, 'password': hashed_password})
             return jsonify({'message': 'REGISTERED SUCCESSFULLY'})
-    return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'})
+    return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'}), 400
 
 
 @app.route('/login', methods=['POST'])
@@ -65,8 +65,8 @@ def login():
                                app.config['SECRET_KEY'])
             return jsonify({'token': token.decode('UTF-8')})
         else:
-            return jsonify({'message': 'INVALID LOGIN OR PASSWORD'})
-    return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'})
+            return jsonify({'message': 'INVALID LOGIN OR PASSWORD'}), 400
+    return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'}), 400
 
 
 @app.route('/items/new', methods=['POST'])
