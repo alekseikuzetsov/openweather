@@ -1,4 +1,6 @@
 import datetime
+import secrets
+
 import jwt
 from functools import wraps
 
@@ -104,6 +106,50 @@ def delete_item(id):
     else:
         return jsonify({'message': 'ITEM NOT FOUND'}), 404
     return jsonify({'message': 'ITEM DELETED SUCCESSFULLY'})
+
+@app.route('/send', methods=['POST'])
+@token_required
+def send():
+    token = request.args.get('token')
+    item_id = request.args.get('item_id')
+    new_owner = request.args.get('new_owner')
+
+    user = jwt.decode(token, app.config['SECRET_KEY'])['user']
+
+    try:
+        obj_id = ObjectId(item_id)
+    except:
+        return jsonify({'message': 'INVALID ITEM ID'}), 400
+
+    item = items.find_one({'_id': obj_id, 'owner': user})
+    if item:
+        link = secrets.token_hex(20)
+        items.update_one({'_id': obj_id}, {'$set': {'new_owner': new_owner, 'link': link}})
+    else:
+        return jsonify({'message': 'ITEM NOT FOUND'}), 404
+
+    return jsonify({'message': 'ITEM TRANSFER REQUEST RECEIVED'})
+
+@app.route('/get', methods=['GET'])
+@token_required
+def get():
+    token = request.args.get('token')
+    item_id = request.args.get('item_id')
+    link = request.args.get('link')
+    user = jwt.decode(token, app.config['SECRET_KEY'])['user']
+
+    try:
+        obj_id = ObjectId(item_id)
+    except:
+        return jsonify({'message': 'INVALID ITEM ID'}), 400
+
+    item = items.find_one({'_id': obj_id, 'new_owner': user, 'link': link})
+    if item:
+        items.update_one({'_id': obj_id}, {'$set': {'owner': user}})
+        items.update_one({'_id': obj_id}, {'$unset': {'new_owner': '', 'link': ''}})
+    else:
+        return jsonify({'message': 'ITEM NOT FOUND'}), 404
+    return jsonify({'message': 'ITEM TRANSFERRED SUCCESSFULLY'})
 
 
 if __name__ == '__main__':
