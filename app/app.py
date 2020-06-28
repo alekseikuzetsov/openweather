@@ -38,7 +38,7 @@ def token_required(f):
 @app.route('/register', methods=['POST'])
 def register():
     auth = request.authorization
-    if not auth is None:
+    if auth:
         if auth.username == '':
             return jsonify({'message': 'USERNAME MUST BE NON-EMPTY'})
         if auth.password == '':
@@ -60,13 +60,14 @@ def login():
         user = users.find_one({'username': auth.username})
         if user and flask_bcrypt.check_password_hash(user['password'], auth.password):
             token = jwt.encode({'user': auth.username,
-                               'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)
+                                'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)
                                 },
                                app.config['SECRET_KEY'])
             return jsonify({'token': token.decode('UTF-8')})
         else:
             return jsonify({'message': 'INVALID LOGIN OR PASSWORD'})
     return jsonify({'message': 'CREDENTIAL DETAILS REQUIRED'})
+
 
 @app.route('/items/new', methods=['POST'])
 @token_required
@@ -79,6 +80,7 @@ def new_item():
     attributes = {key: item[key] for key in item if key not in ['_id', 'owner', 'new_owner']}
     return jsonify({'message': 'ITEM CREATED', 'item_id': str(item_id), 'attributes': attributes})
 
+
 @app.route('/items', methods=['GET'])
 @token_required
 def get_items():
@@ -89,6 +91,7 @@ def get_items():
     for item in item_list:
         for_user[str(item['_id'])] = {key: item[key] for key in item if key not in ['_id', 'owner', 'new_owner']}
     return jsonify(for_user)
+
 
 @app.route('/items/<id>', methods=['DELETE'])
 @token_required
@@ -106,6 +109,7 @@ def delete_item(id):
     else:
         return jsonify({'message': 'ITEM NOT FOUND'}), 404
     return jsonify({'message': 'ITEM DELETED SUCCESSFULLY'})
+
 
 @app.route('/send', methods=['POST'])
 @token_required
@@ -128,7 +132,8 @@ def send():
     else:
         return jsonify({'message': 'ITEM NOT FOUND'}), 404
 
-    return jsonify({'message': 'ITEM TRANSFER REQUEST RECEIVED'})
+    return jsonify({'message': 'ITEM TRANSFER REQUEST RECEIVED', 'link': link})
+
 
 @app.route('/get', methods=['GET'])
 @token_required
